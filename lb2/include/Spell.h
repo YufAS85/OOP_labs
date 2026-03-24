@@ -1,14 +1,9 @@
 #ifndef SPELL_H
 #define SPELL_H
 
-#include <string>
-#include <vector>
-#include "GameField.h"
+#include "ISpell.h"
 
-class Player;
-class Enemy;
-
-class Spell {
+class Spell : public ISpell {
 protected:
     std::string name;
     int range;
@@ -16,19 +11,15 @@ protected:
     
 public:
     Spell(const std::string& n, int r);
-    virtual ~Spell();
+    virtual ~Spell() = default;
     
-    virtual void use(int targetX, int targetY, GameField& field, 
-                     std::vector<Enemy>& enemies, Player& player) = 0;
+    std::string getName() const override;
+    int getRange() const override;
+    std::string getDescription() const override;
+    bool canCast(int playerX, int playerY, int targetX, int targetY) const override;
     
-    virtual std::string getDescription() const;
-    
-    std::string getName() const;
-    int getRange() const;
     bool isUsed() const;
     void setUsed(bool used);
-    
-    bool canUse(int playerX, int playerY, int targetX, int targetY) const;
 };
 
 #endif

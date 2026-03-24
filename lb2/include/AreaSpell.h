@@ -2,7 +2,7 @@
 #define AREA_SPELL_H
 
 #include "Spell.h"
-#include "Enemy.h"
+#include "SpellCastResult.h"
 
 class AreaSpell : public Spell {
 private:
@@ -11,8 +11,16 @@ private:
     
 public:
     AreaSpell();
-    void use(int targetX, int targetY, GameField& field, 
-             std::vector<Enemy>& enemies, Player& player) override;
+    void cast(int targetX, int targetY, 
+              GameField& field, 
+              std::vector<Enemy>& enemies, 
+              Player& player) override;
+    
+    SpellCastResult getCastResult(int targetX, int targetY,
+                                   GameField& field,
+                                   std::vector<Enemy>& enemies) const;
+    
+    ISpell* clone() const override { return new AreaSpell(*this); }
 };
 
 #endif

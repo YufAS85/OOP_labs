@@ -2,7 +2,7 @@
 #define DAMAGE_SPELL_H
 
 #include "Spell.h"
-#include "Enemy.h"
+#include "SpellCastResult.h"
 
 class DamageSpell : public Spell {
 private:
@@ -10,8 +10,16 @@ private:
     
 public:
     DamageSpell();
-    void use(int targetX, int targetY, GameField& field, 
-             std::vector<Enemy>& enemies, Player& player) override;
+    void cast(int targetX, int targetY, 
+              GameField& field, 
+              std::vector<Enemy>& enemies, 
+              Player& player) override;
+    
+    SpellCastResult getCastResult(int targetX, int targetY,
+                                   GameField& field,
+                                   std::vector<Enemy>& enemies) const;
+    
+    ISpell* clone() const override { return new DamageSpell(*this); }
 };
 
 #endif

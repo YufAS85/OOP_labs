@@ -2,7 +2,9 @@
 #include "DamageSpell.h"
 #include "AreaSpell.h"
 #include "Player.h"
+#include "GameField.h" 
 #include "Enemy.h"
+#include "SpellView.h"
 #include <iostream>
 #include <cstdlib>
 #include <conio.h>
@@ -12,29 +14,21 @@ Hand::Hand(int size) : maxSize(size) {
 }
 
 Hand::Hand(const Hand& other) : maxSize(other.maxSize) {
-    for (Spell* spell : other.spells) {
-        if (dynamic_cast<DamageSpell*>(spell)) {
-            spells.push_back(new DamageSpell(*dynamic_cast<DamageSpell*>(spell)));
-        } else if (dynamic_cast<AreaSpell*>(spell)) {
-            spells.push_back(new AreaSpell(*dynamic_cast<AreaSpell*>(spell)));
-        }
+    for (ISpell* spell : other.spells) {
+        spells.push_back(spell->clone());  
     }
 }
 
 Hand& Hand::operator=(const Hand& other) {
     if (this != &other) {
-        for (Spell* spell : spells) {
+        for (ISpell* spell : spells) {
             delete spell;
         }
         spells.clear();
         
         maxSize = other.maxSize;
-        for (Spell* spell : other.spells) {
-            if (dynamic_cast<DamageSpell*>(spell)) {
-                spells.push_back(new DamageSpell(*dynamic_cast<DamageSpell*>(spell)));
-            } else if (dynamic_cast<AreaSpell*>(spell)) {
-                spells.push_back(new AreaSpell(*dynamic_cast<AreaSpell*>(spell)));
-            }
+        for (ISpell* spell : other.spells) {
+            spells.push_back(spell->clone());
         }
     }
     return *this;
@@ -52,20 +46,20 @@ Hand& Hand::operator=(Hand&& other) noexcept {
 }
 
 Hand::~Hand() {
-    for (Spell* spell : spells) {
+    for (ISpell* spell : spells) {
         delete spell;
     }
 }
 
 bool Hand::hasSpellOfType(int type) {
-    for (Spell* spell : spells) {
-        if (type == 0 && dynamic_cast<DamageSpell*>(spell)) return true;
-        if (type == 1 && dynamic_cast<AreaSpell*>(spell)) return true;
+    for (ISpell* spell : spells) {
+        if (type == 0 && spell->getName() == "Огненная стрела") return true;
+        if (type == 1 && spell->getName() == "Взрывная волна") return true;
     }
     return false;
 }
 
-bool Hand::addSpell(Spell* spell) {
+bool Hand::addSpell(ISpell* spell) {
     if (spells.size() >= maxSize) {
         std::cout << "Рука полна! Нельзя добавить новое заклинание.\n";
         delete spell;
@@ -101,17 +95,15 @@ void Hand::addRandomSpell() {
 }
 
 bool Hand::useSpell(int index, int targetX, int targetY, 
-                  GameField& field, std::vector<Enemy>& enemies, Player& player) {
+                    GameField& field, std::vector<Enemy>& enemies, Player& player) {
     if (index < 0 || index >= spells.size()) {
-        std::cout << "Неверный индекс заклинания!\n";
-        std::cout << "Нажмите любую клавишу для продолжения...\n";
-        _getch();
         return false;
     }
     
-    Spell* spell = spells[index];
+    ISpell* spell = spells[index];
     
-    if (spell->isUsed()) {
+    Spell* concreteSpell = dynamic_cast<Spell*>(spell);
+    if (concreteSpell && concreteSpell->isUsed()) {
         std::cout << "Это заклинание уже использовано в этот ход!\n";
         std::cout << "Нажмите любую клавишу для продолжения...\n";
         _getch();
@@ -121,22 +113,18 @@ bool Hand::useSpell(int index, int targetX, int targetY,
     int playerX = player.getX();
     int playerY = player.getY();
     
-    std::cout << "\nПроверка дальности:\n";
-    std::cout << "Игрок: (" << playerX << "," << playerY << ")\n";
-    std::cout << "Цель: (" << targetX << "," << targetY << ")\n";
-    
-    if (!spell->canUse(playerX, playerY, targetX, targetY)) {
+    if (!spell->canCast(playerX, playerY, targetX, targetY)) {
         int distance = abs(playerX - targetX) + abs(playerY - targetY);
-        std::cout << "Цель вне радиуса! Расстояние: " << distance 
-             << ", радиус заклинания: " << spell->getRange() << "\n";
-        std::cout << "Нажмите любую клавишу для продолжения...\n";
-        _getch();
+        SpellView::showCannotCast(distance, spell->getRange());
         return false;
     }
     
-    std::cout << "Цель в радиусе действия\n";
+    spell->cast(targetX, targetY, field, enemies, player);
     
-    spell->use(targetX, targetY, field, enemies, player);
+    if (concreteSpell) {
+        concreteSpell->setUsed(true);
+    }
+    
     return true;
 }
 
@@ -149,7 +137,9 @@ void Hand::display() const {
     std::cout << "\n--- Рука игрока ---\n";
     for (size_t i = 0; i < spells.size(); i++) {
         std::cout << i + 1 << ". " << spells[i]->getDescription();
-        if (spells[i]->isUsed()) {
+        
+        Spell* concreteSpell = dynamic_cast<Spell*>(spells[i]);
+        if (concreteSpell && concreteSpell->isUsed()) {
             std::cout << " [ИСПОЛЬЗОВАНО]";
         }
         std::cout << "\n";
@@ -158,7 +148,10 @@ void Hand::display() const {
 
 void Hand::resetTurn() {
     for (auto spell : spells) {
-        spell->setUsed(false);
+        Spell* concreteSpell = dynamic_cast<Spell*>(spell);
+        if (concreteSpell) {
+            concreteSpell->setUsed(false);
+        }
     }
 }
 

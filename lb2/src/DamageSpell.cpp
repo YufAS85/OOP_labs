@@ -1,44 +1,60 @@
 #include "DamageSpell.h"
+#include "GameField.h"
 #include "Player.h"
 #include "Enemy.h"
-#include <iostream>
-#include <conio.h>
 
 DamageSpell::DamageSpell() : Spell("Огненная стрела", 3), damage(25) {}
 
-void DamageSpell::use(int targetX, int targetY, GameField& field, 
-                     std::vector<Enemy>& enemies, Player& player) {
-    std::cout << "\n=== ПРИМЕНЕНИЕ ЗАКЛИНАНИЯ ===\n";
-    std::cout << "Заклинание: " << name << "\n";
-    std::cout << "Цель: (" << targetX << "," << targetY << ")\n";
+SpellCastResult DamageSpell::getCastResult(int targetX, int targetY,
+                                            GameField& field,
+                                            std::vector<Enemy>& enemies) const {
+    SpellCastResult result;
+    result.targetX = targetX;
+    result.targetY = targetY;
+    result.damageDealt = 0;
+    result.enemiesHit = 0;
+    result.success = false;
     
     if (!field.isCellEnemy(targetX, targetY)) {
-        std::cout << "Нет врага в целевой клетке! Заклинание не сработало.\n";
-        std::cout << "Нажмите любую клавишу для продолжения...\n";
-        _getch();
-        return;
+        result.message = "Нет врага в целевой клетке!";
+        return result;
     }
     
     for (auto& enemy : enemies) {
         if (enemy.isAlive() && enemy.getX() == targetX && enemy.getY() == targetY) {
-            int oldHealth = enemy.getHealth();
-            std::cout << "Враг найден! Текущее здоровье: " << oldHealth << "\n";
-            std::cout << "Наносится " << damage << " урона!\n";
-            
-            enemy.takeDamage(damage);
-            
-            if (!enemy.isAlive()) {
-                std::cout << "Враг уничтожен! +10 очков\n";
-                field.clearCell(targetX, targetY);
-                player.addScore(10);
-            } else {
-                std::cout << "У врага осталось здоровья: " << enemy.getHealth() << "\n";
-            }
+            result.success = true;
+            result.damageDealt = damage;
+            result.enemiesHit = 1;
+            result.message = "Враг получил " + std::to_string(damage) + " урона";
             break;
         }
     }
-    usedThisTurn = true;
-    std::cout << "=== ЗАКЛИНАНИЕ ПРИМЕНЕНО ===\n";
-    std::cout << "Нажмите любую клавишу для продолжения...\n";
-    _getch();
+    
+    return result;
 }
+
+void DamageSpell::cast(int targetX, int targetY, 
+                       GameField& field, 
+                       std::vector<Enemy>& enemies, 
+                       Player& player) {
+    auto result = getCastResult(targetX, targetY, field, enemies);
+    
+    if (result.success) {
+        for (auto& enemy : enemies) {
+            if (enemy.isAlive() && enemy.getX() == targetX && enemy.getY() == targetY) {
+                int oldHealth = enemy.getHealth();
+                enemy.takeDamage(damage);
+                
+                if (!enemy.isAlive()) {
+                    field.clearCell(targetX, targetY);
+                    player.addScore(10);
+                    result.enemyKilled = true;
+                }
+                break;
+            }
+        }
+    }
+    
+    usedThisTurn = true;
+}
+
